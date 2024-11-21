@@ -1,0 +1,56 @@
+#include <iostream>
+#include <string>
+#include <vector>
+#include <map>
+#include <json/json.h>  // For JSON handling
+#include "xrpl_client.h" // Custom XRPL Client library (assume available)
+
+// Constants
+const std::vector<std::string> EXCHANGE_WALLETS = {"ExchangeWallet1", "ExchangeWallet2"}; // Replace with actual addresses
+const std::string XRPL_NODE = "wss://s1.ripple.com"; // Public XRPL node
+
+// Function to fetch transactions for the past 24 hours
+std::vector<Json::Value> fetchTransactions(const std::string& wallet) {
+    // Replace with actual XRPL node query logic
+    XRPLClient client(XRPL_NODE);
+    std::vector<Json::Value> transactions = client.getTransactions(wallet, 24 * 60 * 60);
+    return transactions;
+}
+
+// Function to calculate net inflow for a specific wallet
+double calculateNetInflow(const std::string& wallet) {
+    std::vector<Json::Value> transactions = fetchTransactions(wallet);
+    double inflows = 0.0;
+    double outflows = 0.0;
+
+    for (const auto& tx : transactions) {
+        // Check if the transaction is a payment
+        if (tx["TransactionType"].asString() == "Payment") {
+            double amount = std::stod(tx["Amount"].asString()) / 1000000.0; // XRP to Drops conversion
+            std::string destination = tx["Destination"].asString();
+            std::string sender = tx["Account"].asString();
+
+            if (destination == wallet) {
+                inflows += amount;
+            } else if (sender == wallet) {
+                outflows += amount;
+            }
+        }
+    }
+    return inflows - outflows; // Net Inflow
+}
+
+int main() {
+    double totalInflow = 0.0;
+
+    // Calculate net inflow for each exchange wallet
+    for (const auto& wallet : EXCHANGE_WALLETS) {
+        double walletNetInflow = calculateNetInflow(wallet);
+        totalInflow += walletNetInflow;
+        std::cout << "Net Inflow for Wallet " << wallet << ": " << walletNetInflow << " XRP" << std::endl;
+    }
+
+    std::cout << "Total Net Inflow (24 hours): " << totalInflow << " XRP" << std::endl;
+
+    return 0;
+}
